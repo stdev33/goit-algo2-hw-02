@@ -1,30 +1,110 @@
-def find_min_max(arr_arg):
+from typing import List, Dict
+from dataclasses import dataclass
+
+@dataclass
+class PrintJob:
+    id: str
+    volume: float
+    priority: int
+    print_time: int
+
+@dataclass
+class PrinterConstraints:
+    max_volume: float
+    max_items: int
+
+def optimize_printing(print_jobs: List[Dict], constraints: Dict) -> Dict:
     """
-    Function to find the minimum and maximum values in an array
-    using the "divide and conquer" approach.
+    Optimizes the 3D printing queue based on priorities and printer constraints.
+
+    Args:
+        print_jobs: List of print jobs (dict format).
+        constraints: Printer constraints.
+
+    Returns:
+        Dict containing optimized print order and total print time.
     """
-    # Base case: if only one element, return it as both min and max
-    if len(arr_arg) == 1:
-        return arr_arg[0], arr_arg[0]
+    # Convert input jobs to a list of PrintJob objects
+    jobs = [PrintJob(**job) for job in print_jobs]
 
-    # Base case: if two elements, return the min and max directly
-    if len(arr_arg) == 2:
-        return (arr_arg[0], arr_arg[1]) if arr_arg[0] < arr_arg[1] else (arr_arg[1], arr_arg[0])
+    # Sort jobs by priority (ascending order, highest priority first)
+    jobs.sort(key=lambda job: job.priority)
 
-    # Divide the array into two halves
-    mid = len(arr_arg) // 2
-    left_min, left_max = find_min_max(arr_arg[:mid])
-    right_min, right_max = find_min_max(arr_arg[mid:])
+    print_order = []
+    total_time = 0
+    queue = []
 
-    # Combine results from left and right halves
-    overall_min = min(left_min, right_min)
-    overall_max = max(left_max, right_max)
+    current_volume = 0
+    current_batch_time = 0
 
-    return overall_min, overall_max
+    for job in jobs:
+        # Check if the job can fit in the current batch
+        if len(queue) < constraints["max_items"] and (current_volume + job.volume) <= constraints["max_volume"]:
+            queue.append(job)
+            current_volume += job.volume
+            current_batch_time = max(current_batch_time, job.print_time)
+        else:
+            # Process current batch
+            print_order.extend([job.id for job in queue])
+            total_time += current_batch_time
 
+            # Start a new batch
+            queue = [job]
+            current_volume = job.volume
+            current_batch_time = job.print_time
+
+    # Process the last batch if there are remaining jobs
+    if queue:
+        print_order.extend([job.id for job in queue])
+        total_time += current_batch_time
+
+    return {
+        "print_order": print_order,
+        "total_time": total_time
+    }
+
+# Test cases
+def test_printing_optimization():
+    # Test 1: All jobs have the same priority
+    test1_jobs = [
+        {"id": "M1", "volume": 100, "priority": 1, "print_time": 120},
+        {"id": "M2", "volume": 150, "priority": 1, "print_time": 90},
+        {"id": "M3", "volume": 120, "priority": 1, "print_time": 150}
+    ]
+
+    # Test 2: Jobs with different priorities
+    test2_jobs = [
+        {"id": "M1", "volume": 100, "priority": 2, "print_time": 120},  # Lab work
+        {"id": "M2", "volume": 150, "priority": 1, "print_time": 90},  # Diploma work
+        {"id": "M3", "volume": 120, "priority": 3, "print_time": 150}  # Personal project
+    ]
+
+    # Test 3: Jobs exceeding printer limits
+    test3_jobs = [
+        {"id": "M1", "volume": 250, "priority": 1, "print_time": 180},
+        {"id": "M2", "volume": 200, "priority": 1, "print_time": 150},
+        {"id": "M3", "volume": 180, "priority": 2, "print_time": 120}
+    ]
+
+    constraints = {
+        "max_volume": 300,
+        "max_items": 2
+    }
+
+    print("Test 1 (Same Priority):")
+    result1 = optimize_printing(test1_jobs, constraints)
+    print(f"Print Order: {result1['print_order']}")
+    print(f"Total Time: {result1['total_time']} minutes")
+
+    print("\nTest 2 (Different Priorities):")
+    result2 = optimize_printing(test2_jobs, constraints)
+    print(f"Print Order: {result2['print_order']}")
+    print(f"Total Time: {result2['total_time']} minutes")
+
+    print("\nTest 3 (Exceeding Constraints):")
+    result3 = optimize_printing(test3_jobs, constraints)
+    print(f"Print Order: {result3['print_order']}")
+    print(f"Total Time: {result3['total_time']} minutes")
 
 if __name__ == "__main__":
-    # Test usage
-    arr = [3, 1, 7, 5, 9, 2, 8, 4, 6]
-    min_val, max_val = find_min_max(arr)
-    print(f"Minimum: {min_val}, Maximum: {max_val}")
+    test_printing_optimization()
